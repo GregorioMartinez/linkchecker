@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -52,27 +54,38 @@ func fetch(link string) (*http.Response, error) {
 	return resp, err
 }
 
-// readFile reads in a file and returns a slice of strings with the spaces removed
-// @TODO make sure valid url
-// @TODO make relative to absolute
-// Reads in txt files right now. Expand to txt, csv, xml
-// @TODO don't just trust file extension
-func readFile(file *os.File) ([]string, error) {
-	name := file.Name()
+type ListLinks interface {
+	getLinks(file *os.File) ([]string, error)
+}
 
-	log.Printf("Reading file: %s \n", name)
+type TxtReader struct {
+}
 
-	extension := path.Ext(name)
+type XmlDoc struct {
+	Locs []string `xml:"url>loc"`
+}
 
-	switch extension {
-	case ".txt":
-		fmt.Println("txt file loaded")
-	case ".xml":
-		fmt.Println("XML document loaded")
-	default:
-		fmt.Println("unsupported file extension")
+type XmlReader struct{}
+
+//@TODO Should i get a byte array rather than pas around a file?
+func (r XmlReader) getLinks(file *os.File) ([]string, error) {
+
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		return []string{}, err
 	}
 
+	var doc XmlDoc
+	err = xml.Unmarshal(b, &doc)
+	if err != nil {
+		return []string{}, err
+	}
+
+	return doc.Locs, err
+
+}
+
+func (r TxtReader) getLinks(file *os.File) ([]string, error) {
 	scanner := bufio.NewScanner(file)
 	var lines []string
 
@@ -88,6 +101,34 @@ func readFile(file *os.File) ([]string, error) {
 	}
 
 	return lines, nil
+}
+
+// readFile reads in a file and returns a slice of strings with the spaces removed
+// @TODO make sure valid url
+// @TODO make relative to absolute
+// Reads in txt files right now. Expand to txt, csv, xml
+// @TODO don't just trust file extension
+func readFile(file *os.File) ([]string, error) {
+	name := file.Name()
+
+	log.Printf("Reading file: %s \n", name)
+
+	extension := path.Ext(name)
+
+	switch extension {
+	case ".txt":
+		tr := TxtReader{}
+		return tr.getLinks(file)
+	case ".xml":
+		xr := XmlReader{}
+		return xr.getLinks(file)
+	case ".csv":
+
+	default:
+		fmt.Println("unsupported file extension")
+	}
+
+	return []string{}, nil
 }
 
 func hash(s string) uint64 {

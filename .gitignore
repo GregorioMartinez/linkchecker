@@ -1,2 +1,4 @@
-urls.txt
+*.txt
 *.csv
+*.xml
+todo.md

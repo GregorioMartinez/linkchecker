@@ -16,7 +16,7 @@ import (
 
 func main() {
 	// Open file
-	var filename = flag.String("file", "", "File to check")
+	var filename = flag.String("file", "", "File to pull urls from. Accepts .txt, .csv, .xml")
 	flag.Parse()
 
 	file, err := os.Open(*filename)

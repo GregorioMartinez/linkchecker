@@ -14,6 +14,12 @@ import (
 	"strings"
 )
 
+var requestClient = &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
 func main() {
 	// Open file
 	var filename = flag.String("file", "", "File to pull urls from. Accepts .txt, .csv, .xml")
@@ -38,6 +44,10 @@ func main() {
 			continue
 		}
 
+		if resp.StatusCode >= 300 && resp.StatusCode < 400 {
+			fmt.Println(resp.Request.URL.String())
+		}
+
 		// @TODO test this
 		robots := resp.Header.Get("X-Robots-Tag")
 
@@ -47,9 +57,9 @@ func main() {
 }
 
 func fetch(link string) (*http.Response, error) {
-	resp, err := http.Head(link)
+	resp, err := requestClient.Head(link)
 	if err != nil {
-		// log.Fatal(err)
+		log.Fatal(err)
 	}
 	return resp, err
 }
@@ -80,9 +90,7 @@ func (r XmlReader) getLinks(file *os.File) ([]string, error) {
 	if err != nil {
 		return []string{}, err
 	}
-
 	return doc.Locs, err
-
 }
 
 func (r TxtReader) getLinks(file *os.File) ([]string, error) {
